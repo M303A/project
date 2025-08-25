@@ -1,49 +1,42 @@
-import sys
+import streamlit as st
 import pandas as pd
-from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QLabel, QTableWidget, QTableWidgetItem
-import pyqtgraph as pg
 
-# Sample student data
-data = {
-    'Subject': ['Math', 'History', 'Physics', 'Chemistry', 'Biology', 'English', 'Geography'],
-    'Score': [85, 78, 82, 80, 83, 87, 81]
-}
-df = pd.DataFrame(data)
-avg_score = df['Score'].mean()
-below_avg = df[df['Score'] < avg_score]
+st.title("Student Performance Predictor")
 
-class Dashboard(QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle('Student Performance Dashboard')
-        self.resize(700, 500)
-        layout = QVBoxLayout()
+# --- Inputs ---
+name = st.text_input("Enter student name:")
+age = st.number_input("Enter age:", min_value=10, max_value=25)
+study_hours = st.slider("Weekly self-study hours:", 0, 50, 15)
+absence_days = st.slider("Number of absence days:", 0, 10, 2)
+part_time_job = st.selectbox("Part-time job?", ["No", "Yes"])
 
-        # Summary
-        summary = QLabel(f"<b>Average Score:</b> {avg_score:.2f}   <b>Subjects Below Avg:</b> {', '.join(below_avg['Subject'])}")
-        layout.addWidget(summary)
+# --- Demo prediction logic (simulate scores) ---
+def mock_predict(age, study_hours, absence_days, part_time_job):
+    base_score = 75 + study_hours * 0.3 - absence_days * 2
+    if part_time_job == "Yes":
+        base_score -= 4
+    math_score = max(50, min(100, base_score + 3))
+    history_score = max(50, min(100, base_score - 2))
+    physics_score = max(50, min(100, base_score + 1))
+    scores = {"Math": math_score, "History": history_score, "Physics": physics_score}
+    avg_score = round(sum(scores.values()) / len(scores), 1)
+    improvement = [subj for subj, score in scores.items() if score < avg_score]
+    return scores, avg_score, improvement
 
-        # Table
-        table = QTableWidget(df.shape[0], df.shape[1])
-        table.setHorizontalHeaderLabels(df.columns)
-        for i, row in df.iterrows():
-            for j, val in enumerate(row):
-                table.setItem(i, j, QTableWidgetItem(str(val)))
-        layout.addWidget(table)
+if st.button("Predict"):
+    scores, avg_score, improvement = mock_predict(age, study_hours, absence_days, part_time_job)
+    st.subheader(f"Prediction for {name} (Age {age})")
+    st.write(f"Average predicted score: **{avg_score}**")
+    st.write("Subject-wise performance:")
+    st.table(pd.DataFrame(scores, index=["Predicted Score"]).T)
+    if improvement:
+        st.warning(f"Areas for improvement: {', '.join(improvement)}")
+    else:
+        st.success("You're performing above average in all subjects!")
 
-        # Plot
-        plot_widget = pg.PlotWidget(title="Scores by Subject")
-        plot_widget.plot(list(range(len(df))), df['Score'], pen=pg.mkPen('b', width=2), symbol='o')
-        plot_widget.getPlotItem().getAxis('bottom').setTicks([list(enumerate(df['Subject']))])
-        layout.addWidget(plot_widget)
+    st.write("Score Chart:")
+    st.bar_chart(scores)
 
-        # Central widget
-        central = QWidget()
-        central.setLayout(layout)
-        self.setCentralWidget(central)
-
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    dash = Dashboard()
-    dash.show()
-    sys.exit(app.exec_())
+    st.write("Recommendation:")
+    st.write(f"- Maintain at least **{max(20, study_hours)}** study hours/week")
+    st.write(f"- Keep absence days below **3** for optimal results.")
